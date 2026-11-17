@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+model User {
+  id       Int         @id @default(autoincrement())
+  name     String
+  phone    String      @unique
+  password String
+  role     Role        @default(MEMBER)
+  shares   SlotShare[]
+}
+
+// One slot = 200 ETB/week. `position` is the payout week (1, 2, 3, ...).
+model Slot {
+  id        Int         @id @default(autoincrement())
+  position  Int         @unique
+  purpose   String?     // optional note, e.g. "school fees"
+  paidOutAt DateTime?
+  shares    SlotShare[]
+}
+
+// Who holds how much of a slot: 1.0 = full slot, 0.5 = half (split with a friend).
+model SlotShare {
+  id       Int       @id @default(autoincrement())
+  slot     Slot      @relation(fields: [slotId], references: [id])
+  slotId   Int
+  user     User      @relation(fields: [userId], references: [id])
+  userId   Int
+  share    Float
+  payments Payment[]
+
+  @@unique([slotId, userId])
+}
+
+// One record per slot share per week.
+model Payment {
+  id          Int       @id @default(autoincrement())
+  slotShare   SlotShare @relation(fields: [slotShareId], references: [id])
+  slotShareId Int
+  week        Int
+  confirmed   Boolean   @default(false)
+  confirmedAt DateTime?
+
+  @@unique([slotShareId, week])
+}
